@@ -1,20 +1,24 @@
 package br.unb.cic.flang
 
+import cats.MonadError
+import cats.instances.either._
+import cats.data.EitherT
 import cats.data.State
 
-package object StateMonad {
-  type S = List[(String, Integer)]
 
+object MErrState {
+  type S = List[(String, Integer)]
   type MState[A] = State[S,A]
-  def pure[A](a: A): MState[A] = State.pure(a) 
+  type MStateEH[A] = EitherT[MState,String,A]
+  
+  def pure[A](a: A): MStateEH[A] = EitherT.pure(a) 
 
   def declareVar(name: String, value: Integer, state: S): S =
     (name, value) :: state
 
-  def lookupVar(name: String, state: S): Integer = state match {
-    case List()                      => ???
-    case (n, v) :: tail if n == name => v
+  def lookupVar(name: String, state: S): MStateEH[Integer] = state match {
+    case List()                      => EitherT.leftT(s"Variable $name is not declared")
+    case (n, v) :: tail if n == name => EitherT.rightT(v)
     case _ :: tail                   => lookupVar(name, tail)
   }
-
 }
