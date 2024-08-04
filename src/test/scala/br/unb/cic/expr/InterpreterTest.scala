@@ -6,31 +6,30 @@ import matchers._
 
 import Interpreter._
 import Declarations._
-import StateMonad._
-import cats.data.State
+import MErrState._
 
 class InterpreterTest extends AnyFlatSpec with should.Matchers {
 
   val inc = FDeclaration("inc", "x", Add(Id("x"), CInt(1)))
+  val bug = FDeclaration("bug", "x", Add(Id("y"), CInt(1)))
 
-  val declarations = List(inc)
-
+  val declarations = List(inc, bug)
   val initialState: S = List()
 
   "eval CInt(5)" should "return an integer value 5." in {
     val c5 = CInt(5)
     val state = eval(c5, declarations)
-    val (_, res) = state.run(initialState).value
-    res should be (5)
+    val (_, res) = state.value.run(initialState).value
+    res should be (Right(5))
   }
 
   "eval Add(CInt(5), CInt(10)) " should "return an integer value 15." in {
     val c5  = CInt(5)
     val c10 = CInt(10)
     val add = Add(c5, c10)
-    val state = eval(add, declarations)
-    val (_, res) = state.run(initialState).value
-    res should be (15)
+    val state = eval(add, declarations) 
+    val (_, res) = state.value.run(initialState).value
+    res should be (Right(15))
   }
 
   "eval Add(CInt(5), Add(CInt(5), CInt(10))) " should "return an integer value 20." in {
@@ -38,23 +37,42 @@ class InterpreterTest extends AnyFlatSpec with should.Matchers {
     val c10 = CInt(10)
     val add = Add(c5, Add(c5, c10))
     val state = eval(add, declarations)
-    val (_, res) = state.run(initialState).value
-    res should be(20)
+    val (_, res) = state.value.run(initialState).value
+    res should be (Right(20))
   }
 
   "eval Mul(CInt(5), CInt(10))" should "return an integer value 50" in {
     val c5 = CInt(5)
     val c10 = CInt(10)
     val mul = Mul(c5, CInt(10))
-    val state = eval(mul, declarations)
-    val (_, res) = state.run(initialState).value
-    res should be(50)
+    val state = eval(mul, declarations) 
+    val (_, res) = state.value.run(initialState).value
+    res should be (Right(50))
   }
 
   "eval App(inc, 99) " should "return an integer value 100" in {
     val app = App("inc", CInt(99))
-    val state = eval(app, declarations)
-    val (_, res) = state.run(initialState).value
-    res should be (100)
+    val state = eval(app, declarations) 
+    val (_, res) = state.value.run(initialState).value
+    res should be (Right(100))
   }
+
+  "eval App(foo, 10) " should "raise an error." in {
+    val app = App("foo", CInt(10))
+    val state = eval(app, declarations)
+    val (_, res) = state.value.run(initialState).value
+    val types = res.isLeft
+    types should be (true)
+  }
+
+  "eval Add(5, App(bug, 10)) " should "raise an error." in {
+    val c5  = CInt(5)
+    val app = App("bug", CInt(10))
+    val add = Add(app, c5)
+    val state = eval(add, declarations)
+    val (_, res) = state.value.run(initialState).value
+    val types = res.isLeft
+    types should be (true)
+  }
+  
 }
